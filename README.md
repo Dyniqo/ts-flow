@@ -86,6 +86,20 @@ The **TS-Flow** Framework is a modular, extensible framework specifically design
 
 ---
 
+## 📦 Installation
+
+Install the package using npm or yarn:
+
+```bash
+npm install @dyniqo/ts-flow
+```
+or
+```bash
+yarn add @dyniqo/ts-flow
+```
+
+---
+
 ## 📖 **Usage Examples**
 
 ### **Step 1: Creating a Workflow**
