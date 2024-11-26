@@ -5,7 +5,7 @@
     "name": "Dyniqo",
     "url": "https://github.com/Dyniqo"
   },
-  "description": "",
+  "description": "The TS-Flow Framework is a modular, extensible framework specifically designed to simplify workflow and task orchestration. It provides a powerful structure and intuitive API to handle simple to complex orchestrations, letting developers focus on business logic while ensuring efficient execution and scalability.",
   "main": "dist/ts-flow.cjs.js",
   "module": "dist/ts-flow.esm.js",
   "types": "dist/ts-flow.d.ts",
