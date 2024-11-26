@@ -1,0 +1,46 @@
+{
+  "name": "@dyniqo/ts-flow",
+  "version": "1.0.0",
+  "author": {
+    "name": "Dyniqo",
+    "url": "https://github.com/Dyniqo"
+  },
+  "description": "",
+  "main": "dist/ts-flow.cjs.js",
+  "module": "dist/ts-flow.esm.js",
+  "types": "dist/ts-flow.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "npm run clean && rollup -c",
+    "clean": "rimraf ./dist",
+    "prepublish": "npm run build",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [],
+  "homepage": "https://github.com/Dyniqo/ts-flow",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dyniqo/ts-flow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Dyniqo/ts-flow/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-typescript": "^12.1.1",
+    "@types/node": "^22.9.0",
+    "@types/node-cron": "^3.0.11",
+    "typescript": "^5.7.2"
+  }
+}

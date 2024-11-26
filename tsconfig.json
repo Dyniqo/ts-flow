@@ -1,0 +1,25 @@
+{
+     "compilerOptions": {
+          "target": "ES2019",
+          "module": "ESNext",
+          "declaration": true,
+          "declarationDir": "./dist",
+          "outDir": "./dist",
+          "rootDir": "./src",
+          "moduleResolution": "node",
+          "types": ["node"],
+          "strict": true,
+          "esModuleInterop": true,
+          "emitDeclarationOnly": false,
+          "skipLibCheck": true,
+          "experimentalDecorators": true,
+          "emitDecoratorMetadata": true
+     },
+     "include": [
+          "src/index.ts"
+     ],
+     "exclude": [
+          "node_modules",
+          "dist"
+     ]
+}
