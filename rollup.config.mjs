@@ -63,7 +63,9 @@ export default [
         banner,
       },
     ],
-    external: [],
+    external: [
+     'node-cron'
+    ],
     plugins: [
       resolve(),
       commonjs(),
