@@ -3,7 +3,7 @@ import commonjs from "@rollup/plugin-commonjs";
 import typescript from "@rollup/plugin-typescript";
 import dts from "rollup-plugin-dts";
 import json from "@rollup/plugin-json";
-// import { terser } from "rollup-plugin-terser";
+import { terser } from "rollup-plugin-terser";
 import del from "rollup-plugin-delete";
 const banner = `/*!
  * ts-flow
@@ -29,37 +29,41 @@ export default [
         sourcemap: true,
         banner
       },
-      //  {
-      //    file: "dist/ts-flow.amd.js",
-      //    format: "amd",
-      //    sourcemap: true,
-      //    banner
-      //  },
-      //  {
-      //    file: "dist/ts-flow-iife.js",
-      //    format: "iife",
-      //    name: "TSWebSocket",
-      //    sourcemap: true,
-      //    banner
-      //  },
-      //  {
-      //    file: "dist/ts-flow.iife.min.js",
-      //    format: "iife",
-      //    name: "TSWebSocket",
-      //    sourcemap: true,
-      //    plugins: [terser()],
-      //    banner
-      //  },
+      {
+        file: "dist/ts-flow.cjs.min.js",
+        format: "cjs",
+        sourcemap: true,
+        plugins: [terser()],
+        banner,
+      },
+      {
+        file: "dist/ts-flow.esm.min.js",
+        format: "esm",
+        sourcemap: true,
+        plugins: [terser()],
+        banner,
+      },
+      {
+        file: "dist/ts-flow.amd.js",
+        format: "amd",
+        sourcemap: true,
+        banner,
+      },
+      {
+        file: "dist/ts-flow-iife.js",
+        format: "iife",
+        sourcemap: true,
+        banner,
+      },
+      {
+        file: "dist/ts-flow.iife.min.js",
+        format: "iife",
+        sourcemap: true,
+        plugins: [terser()],
+        banner,
+      },
     ],
-    external: [
-      "inversify",
-      "jsonwebtoken",
-      "reflect-metadata",
-      "express",
-      "http",
-      "net",
-      "ws",
-    ],
+    external: [],
     plugins: [
       resolve(),
       commonjs(),

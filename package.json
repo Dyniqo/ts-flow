@@ -5,10 +5,23 @@
     "name": "Dyniqo",
     "url": "https://github.com/Dyniqo"
   },
-  "description": "The TS-Flow Framework is a modular, extensible framework specifically designed to simplify workflow and task orchestration. It provides a powerful structure and intuitive API to handle simple to complex orchestrations, letting developers focus on business logic while ensuring efficient execution and scalability.",
+  "description": "",
   "main": "dist/ts-flow.cjs.js",
   "module": "dist/ts-flow.esm.js",
   "types": "dist/ts-flow.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/ts-flow.cjs.js",
+      "import": "./dist/ts-flow.esm.js",
+      "types": "./dist/ts-flow.d.ts"
+    },
+    "./iife": {
+      "import": "./dist/ts-flow.iife.min.js"
+    },
+    "./amd": {
+      "import": "./dist/ts-flow.amd.js"
+    }
+  },
   "type": "module",
   "scripts": {
     "build": "npm run clean && rollup -c",
@@ -18,7 +31,30 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
-  "keywords": [],
+  "keywords": [
+    "workflow",
+    "task management",
+    "typescript",
+    "framework",
+    "orchestration",
+    "automation",
+    "modular",
+    "task orchestration",
+    "flow management",
+    "asynchronous",
+    "scalable",
+    "event-driven",
+    "cron scheduler",
+    "parallel tasks",
+    "retry policies",
+    "state management",
+    "hooks",
+    "error handling",
+    "es6 modules",
+    "iife",
+    "cjs",
+    "esm"
+  ],
   "homepage": "https://github.com/Dyniqo/ts-flow",
   "license": "MIT",
   "repository": {
@@ -41,6 +77,7 @@
     "@rollup/plugin-typescript": "^12.1.1",
     "@types/node": "^22.9.0",
     "@types/node-cron": "^3.0.11",
+    "rollup-plugin-terser": "^7.0.2",
     "typescript": "^5.7.2"
   }
 }
