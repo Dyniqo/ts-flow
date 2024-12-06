@@ -1,9 +1,9 @@
-import { THookType, TWorkflowOptions } from '../../../types';
 import { IWorkflow } from './IWorkflow';
 import { ITask } from '../task/ITask';
 import { ILogger } from '../../utils/ILogger';
 import { IErrorHandler } from '../error/IErrorHandler';
 import { IPersistence } from '../../utils/IPersistence';
+import { THookType, TWorkflowOptions } from '../../../types';
 
 /**
  * Interface for building a workflow through a fluent, step-by-step process.
@@ -38,12 +38,13 @@ export interface IWorkflowBuilder {
       * Adds a group of tasks to be executed in parallel.
       * Example:
       * ```typescript
-      * builder.addParallelTasks([task1, task2]);
+      * builder.addParallelTasks('ParallelGroup', [task1, task2]);
       * ```
+      * @param name - A unique name for the group of parallel tasks.
       * @param tasks - An array of tasks to execute in parallel.
       * @returns The workflow builder instance for method chaining.
       */
-     addParallelTasks(tasks: ITask[]): IWorkflowBuilder;
+     addParallelTasks(name: string, tasks: ITask[]): IWorkflowBuilder;
 
      /**
       * Adds conditional tasks to the workflow.
@@ -51,15 +52,18 @@ export interface IWorkflowBuilder {
       * Example:
       * ```typescript
       * builder.addConditionalTasks(
+      *   'ConditionalGroup',
       *   (context) => context.get('shouldRunTasks') === true,
       *   [taskA, taskB]
       * );
       * ```
+      * @param name - A unique name for the conditional task group.
       * @param condition - A function that evaluates the condition based on the workflow context.
       * @param tasks - An array of tasks to execute if the condition is met.
       * @returns The workflow builder instance for method chaining.
       */
      addConditionalTasks(
+          name: string,
           condition: (context: any) => boolean,
           tasks: ITask[]
      ): IWorkflowBuilder;

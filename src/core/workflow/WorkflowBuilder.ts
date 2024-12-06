@@ -1,17 +1,18 @@
+import { TaskContext } from '../task';
 import { Workflow } from './Workflow';
-import { IWorkflowBuilder } from '../../interfaces/core/workflow/IWorkflowBuilder';
-import { ITask } from '../../interfaces/core/task/ITask';
 import { HookManager } from '../hooks/HookManager';
+import { ParallelTask } from '../task/ParallelTask';
 import { THookType, TWorkflowOptions } from '../../types';
 import { ConditionalTask } from '../task/ConditionalTask';
-import { ParallelTask } from '../task/ParallelTask';
+import { ITask } from '../../interfaces/core/task/ITask';
 import { ILogger } from '../../interfaces/utils/ILogger';
-import { IErrorHandler } from '../../interfaces/core/error/IErrorHandler';
 import { IPersistence } from '../../interfaces/utils/IPersistence';
+import { IErrorHandler } from '../../interfaces/core/error/IErrorHandler';
+import { IWorkflowBuilder } from '../../interfaces/core/workflow/IWorkflowBuilder';
 
 /**
- * A builder class for constructing workflows in a step-by-step, fluent manner.
- * Allows the configuration of tasks, hooks, options, and other dependencies before creating a `Workflow` instance.
+ * A fluent builder class for constructing workflows.
+ * Supports adding tasks, hooks, validators, and configuration options step-by-step.
  */
 export class WorkflowBuilder implements IWorkflowBuilder {
      /**
@@ -20,32 +21,32 @@ export class WorkflowBuilder implements IWorkflowBuilder {
      private name: string = '';
 
      /**
-      * The list of tasks included in the workflow.
+      * List of tasks included in the workflow.
       */
      private tasks: ITask[] = [];
 
      /**
-      * The HookManager instance for managing lifecycle hooks.
+      * Instance of `HookManager` to manage workflow lifecycle hooks.
       */
      private hookManager: HookManager = new HookManager();
 
      /**
-      * Configuration options for the workflow.
+      * Configuration options for the workflow, such as middleware or retry settings.
       */
      private options: TWorkflowOptions = {};
 
      /**
-      * Optional logger instance for logging workflow activities.
+      * Optional logger instance for logging workflow-related activities.
       */
      private logger?: ILogger;
 
      /**
-      * Optional error handler for managing errors during workflow execution.
+      * Optional error handler for managing workflow execution errors.
       */
      private errorHandler?: IErrorHandler;
 
      /**
-      * Optional persistence mechanism for saving workflow states.
+      * Optional persistence mechanism for saving and restoring workflow states.
       */
      private persistence?: IPersistence;
 
@@ -55,8 +56,8 @@ export class WorkflowBuilder implements IWorkflowBuilder {
       * ```typescript
       * builder.setName('MyWorkflow');
       * ```
-      * @param name - The name to assign to the workflow.
-      * @returns The current `WorkflowBuilder` instance for chaining.
+      * @param name - The name of the workflow.
+      * @returns The current instance of `WorkflowBuilder` for chaining.
       */
      public setName(name: string): WorkflowBuilder {
           this.name = name;
@@ -64,14 +65,14 @@ export class WorkflowBuilder implements IWorkflowBuilder {
      }
 
      /**
-      * Adds a single task to the workflow.
-      * Tasks are executed sequentially unless otherwise specified.
+      * Adds a task to the workflow.
+      * Tasks are executed sequentially unless specified otherwise.
       * Example:
       * ```typescript
       * builder.addTask(myTask);
       * ```
-      * @param task - The task to add to the workflow.
-      * @returns The current `WorkflowBuilder` instance for chaining.
+      * @param task - The task to add.
+      * @returns The current instance of `WorkflowBuilder` for chaining.
       */
      public addTask(task: ITask): WorkflowBuilder {
           this.tasks.push(task);
@@ -79,51 +80,74 @@ export class WorkflowBuilder implements IWorkflowBuilder {
      }
 
      /**
-      * Adds a set of tasks to be executed in parallel.
+      * Adds a set of tasks to the workflow that will run in parallel.
       * Example:
       * ```typescript
-      * builder.addParallelTasks([task1, task2]);
+      * builder.addParallelTasks('MyParallelTasks', [taskA, taskB, taskC]);
       * ```
-      * @param tasks - An array of tasks to execute in parallel.
-      * @returns The current `WorkflowBuilder` instance for chaining.
+      * @param name - A name for the parallel task group.
+      * @param tasks - An array of tasks to run in parallel.
+      * @returns The current instance of `WorkflowBuilder` for chaining.
       */
-     public addParallelTasks(tasks: ITask[]): WorkflowBuilder {
-          const parallelTask = new ParallelTask('ParallelTasks', tasks, this.logger);
+     public addParallelTasks(name: string, tasks: ITask[]): WorkflowBuilder {
+          const parallelTask = new ParallelTask(name, tasks, this.logger, this.options);
           this.tasks.push(parallelTask);
           return this;
      }
 
      /**
       * Adds a group of conditional tasks to the workflow.
-      * The tasks are executed only if the specified condition evaluates to `true`.
+      * The tasks execute only if the provided condition function evaluates to `true`.
       * Example:
       * ```typescript
       * builder.addConditionalTasks(
-      *   (context) => context.get('shouldRunTasks') === true,
-      *   [taskA, taskB]
+      *   'ConditionalGroup',
+      *   (context) => context.get('shouldRun') === true,
+      *   [taskX, taskY]
       * );
       * ```
-      * @param condition - A function that determines whether the tasks should be executed.
-      * @param tasks - The tasks to execute if the condition is met.
-      * @returns The current `WorkflowBuilder` instance for chaining.
+      * @param name - A name for the conditional task group.
+      * @param condition - A function to evaluate whether to execute the tasks.
+      * @param tasks - An array of tasks to run if the condition is met.
+      * @returns The current instance of `WorkflowBuilder` for chaining.
       */
-     public addConditionalTasks(
-          condition: (context: any) => boolean,
-          tasks: ITask[]
+     public addConditionalTasks<Input = any, Output = any>(
+          name: string,
+          condition: (context: TaskContext<Input, Output>) => boolean,
+          tasks: ITask<Input, Output>[]
      ): WorkflowBuilder {
-          const conditionalTask = new ConditionalTask(
-               'ConditionalTasks',
+          const conditionalTask = new ConditionalTask<Input, Output>(
+               name,
                condition,
                tasks,
-               this.logger
+               this.logger,
+               this.options
           );
           this.tasks.push(conditionalTask);
           return this;
      }
 
      /**
+      * Sets a validator function to validate the workflow's input.
+      * Example:
+      * ```typescript
+      * builder.setValidator(async (input) => {
+      *   const errors = [];
+      *   if (!input.userId) errors.push('User ID is required.');
+      *   return errors;
+      * });
+      * ```
+      * @param validator - A function that validates the input and returns an array of error messages.
+      * @returns The current instance of `WorkflowBuilder` for chaining.
+      */
+     public setValidator<Input, Output>(validator: (input: Input) => Promise<string[]>): WorkflowBuilder {
+          (this.options as any).validator = validator;
+          return this;
+     }
+
+     /**
       * Adds a lifecycle hook to the workflow.
-      * Hooks are triggered at specific stages during workflow execution.
+      * Hooks are triggered at specific points during the workflow's lifecycle.
       * Example:
       * ```typescript
       * builder.addHook('onTaskFinish', async (context) => {
@@ -131,8 +155,8 @@ export class WorkflowBuilder implements IWorkflowBuilder {
       * });
       * ```
       * @param hookType - The type of the hook (e.g., 'onWorkflowStart', 'onTaskFinish').
-      * @param hook - A function to execute at the specified stage.
-      * @returns The current `WorkflowBuilder` instance for chaining.
+      * @param hook - The function to execute during the specified lifecycle event.
+      * @returns The current instance of `WorkflowBuilder` for chaining.
       */
      public addHook(
           hookType: THookType,
@@ -143,13 +167,13 @@ export class WorkflowBuilder implements IWorkflowBuilder {
      }
 
      /**
-      * Configures workflow-specific options such as retry policies and timeouts.
+      * Configures the workflow's options, such as middleware, retry policies, or timeouts.
       * Example:
       * ```typescript
       * builder.setOptions({ retryCount: 3, timeout: 5000 });
       * ```
-      * @param options - The configuration options for the workflow.
-      * @returns The current `WorkflowBuilder` instance for chaining.
+      * @param options - The options to configure.
+      * @returns The current instance of `WorkflowBuilder` for chaining.
       */
      public setOptions(options: TWorkflowOptions): WorkflowBuilder {
           this.options = options;
@@ -163,7 +187,7 @@ export class WorkflowBuilder implements IWorkflowBuilder {
       * builder.setLogger(myLogger);
       * ```
       * @param logger - The logger instance to use.
-      * @returns The current `WorkflowBuilder` instance for chaining.
+      * @returns The current instance of `WorkflowBuilder` for chaining.
       */
      public setLogger(logger: ILogger): WorkflowBuilder {
           this.logger = logger;
@@ -171,13 +195,13 @@ export class WorkflowBuilder implements IWorkflowBuilder {
      }
 
      /**
-      * Sets a custom error handler for managing errors during workflow execution.
+      * Sets a custom error handler for the workflow.
       * Example:
       * ```typescript
       * builder.setErrorHandler(myErrorHandler);
       * ```
       * @param errorHandler - The error handler instance to use.
-      * @returns The current `WorkflowBuilder` instance for chaining.
+      * @returns The current instance of `WorkflowBuilder` for chaining.
       */
      public setErrorHandler(errorHandler: IErrorHandler): WorkflowBuilder {
           this.errorHandler = errorHandler;
@@ -185,13 +209,13 @@ export class WorkflowBuilder implements IWorkflowBuilder {
      }
 
      /**
-      * Sets a persistence mechanism for saving and restoring workflow states.
+      * Sets a persistence mechanism for the workflow to save and restore states.
       * Example:
       * ```typescript
       * builder.setPersistence(myPersistenceLayer);
       * ```
       * @param persistence - The persistence mechanism to use.
-      * @returns The current `WorkflowBuilder` instance for chaining.
+      * @returns The current instance of `WorkflowBuilder` for chaining.
       */
      public setPersistence(persistence: IPersistence): WorkflowBuilder {
           this.persistence = persistence;
@@ -199,7 +223,7 @@ export class WorkflowBuilder implements IWorkflowBuilder {
      }
 
      /**
-      * Builds and returns the fully configured workflow instance.
+      * Builds and returns the configured workflow instance.
       * Throws an error if the workflow name is not set.
       * Example:
       * ```typescript
@@ -211,7 +235,7 @@ export class WorkflowBuilder implements IWorkflowBuilder {
           if (!this.name) {
                throw new Error('Workflow must have a name');
           }
-          return new Workflow(
+          const wf = new Workflow(
                this.name,
                this.tasks,
                this.hookManager,
@@ -220,5 +244,10 @@ export class WorkflowBuilder implements IWorkflowBuilder {
                this.errorHandler,
                this.persistence
           );
+          // Set the validator if defined in options.
+          if ((this.options as any).validator) {
+               wf.setValidator((this.options as any).validator);
+          }
+          return wf;
      }
 }

@@ -24,16 +24,19 @@ export class ErrorHandler implements IErrorHandler {
      }
 
      /**
-      * Handles an error by logging it and performing optional custom error-handling actions.
-      * This method can be extended to include logic for sending error reports, updating metrics, or retrying tasks.
+      * Handles an error by logging its details and optionally executing additional error-handling logic.
+      * This method serves as a central point for managing errors in tasks and workflows,
+      * enabling features like logging, reporting, retrying, or updating system metrics.
+      * 
       * Example:
       * ```typescript
-      * await errorHandler.handleError(new Error('Something went wrong'), { taskId: '123' });
+      * await errorHandler.handleError(new Error('Task execution failed'), { taskId: '123', step: 'data processing' });
       * ```
-      * @param error - The error to handle.
-      * @param context - Additional context information to provide more details about the error.
-      *                  This can include metadata such as the current task or workflow state.
-      * @returns A promise that resolves once the error handling is complete.
+      * 
+      * @param error - The error to handle. Includes the message and stack trace.
+      * @param context - Optional context providing additional information about the error's origin or impact.
+      *                  This can include metadata such as task or workflow identifiers, input data, or state.
+      * @returns A promise that resolves once the error has been logged and handled.
       */
      public async handleError(error: Error, context: any): Promise<void> {
           this.logger.error(`Error: ${error.message}`);

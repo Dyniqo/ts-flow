@@ -1,21 +1,21 @@
-import { ITask } from '../../interfaces/core/task/ITask';
 import { TaskContext } from './TaskContext';
-import { TTaskOptions } from '../../types';
-import { ILogger } from '../../interfaces/utils/ILogger';
-import { ETaskStatus } from '../../enums';
 import { RetryPolicy } from './RetryPolicy';
+import { Logger } from '../../utils/Logger';
+import { ErrorHandler } from '../error/ErrorHandler';
+import { ETaskStatus } from '../../enums';
+import { TTaskOptions } from '../../types';
 import { TimeoutPolicy } from './TimeoutPolicy';
 import { IErrorHandler } from '../../interfaces/core/error/IErrorHandler';
 import { IPersistence } from '../../interfaces/utils/IPersistence';
-import { Logger } from '../../utils/Logger';
-import { ErrorHandler } from '../error/ErrorHandler';
+import { ITask } from '../../interfaces/core/task/ITask';
+import { ILogger } from '../../interfaces/utils/ILogger';
 
 /**
- * Implementation of a task that can be executed with retry and timeout policies.
- * Includes support for logging, error handling, and optional persistence of task states.
+ * Represents a task that supports execution with retry and timeout policies.
+ * This class includes logging, error handling, and optional state persistence.
  * 
- * @template Input - The type of the input data for the task.
- * @template Output - The type of the output data produced by the task.
+ * @template Input - The type of input data for the task.
+ * @template Output - The type of output data produced by the task.
  */
 export class Task<Input = any, Output = any> implements ITask<Input, Output> {
      /**
@@ -24,64 +24,65 @@ export class Task<Input = any, Output = any> implements ITask<Input, Output> {
      public readonly name: string;
 
      /**
-      * Configuration options for the task, such as retry and timeout settings.
+      * Configuration options for the task, including retry and timeout settings.
       */
      protected readonly options: TTaskOptions;
 
      /**
-      * The function to execute the task's logic.
+      * The function that defines the task's logic.
       */
      private executeFn: (context: TaskContext<Input, Output>) => Promise<Output>;
 
      /**
-      * Current status of the task, e.g., Pending, Running, Completed.
+      * Current execution status of the task, e.g., Pending, Running, Completed.
       */
      private status: ETaskStatus = ETaskStatus.Pending;
 
      /**
-      * The retry policy controlling the number of retries and delays between retries.
+      * Retry policy instance for managing retry logic and delays.
       */
      private retryPolicy: RetryPolicy;
 
      /**
-      * The timeout policy controlling the task execution timeout.
+      * Timeout policy instance for enforcing execution time limits.
       */
      private timeoutPolicy: TimeoutPolicy;
 
      /**
-      * Logger instance for logging task lifecycle events.
+      * Logger instance for capturing task-related events and errors.
       */
      protected logger: ILogger;
 
      /**
-      * Error handler for managing errors during task execution.
+      * Error handler for managing task execution errors.
       */
      private errorHandler: IErrorHandler;
 
      /**
-      * Optional persistence mechanism for saving task states.
+      * Optional persistence mechanism for storing task states.
       */
      private persistence?: IPersistence;
 
      /**
-      * Constructs a Task instance.
+      * Constructs a Task instance with the provided parameters.
+      * 
       * Example:
       * ```typescript
       * const task = new Task(
       *   'MyTask',
       *   async (context) => {
-      *     // Task logic here
-      *     return { result: 'Success' };
+      *     return await performLogic(context.getInput());
       *   },
       *   { retryCount: 3, timeout: 5000 }
       * );
       * ```
-      * @param name - The name of the task.
-      * @param executeFn - The function containing the logic to execute the task.
-      * @param options - Configuration options for the task, including retry and timeout settings.
-      * @param logger - Optional custom logger instance.
-      * @param errorHandler - Optional custom error handler instance.
-      * @param persistence - Optional persistence mechanism for saving task states.
+      * 
+      * @param name - The unique name of the task.
+      * @param executeFn - The function to execute the task logic.
+      * @param options - Task-specific options, including retry and timeout settings.
+      * @param logger - Optional logger instance for capturing logs.
+      * @param errorHandler - Optional error handler instance.
+      * @param persistence - Optional persistence mechanism for task state management.
       */
      constructor(
           name: string,
@@ -94,6 +95,8 @@ export class Task<Input = any, Output = any> implements ITask<Input, Output> {
           this.name = name;
           this.executeFn = executeFn;
           this.options = options || {};
+          this.options.retryCount = this.options.retryCount ?? 0;
+          this.options.timeout = this.options.timeout ?? 0;
           this.retryPolicy = new RetryPolicy(
                this.options.retryCount,
                this.options.backoffOptions
@@ -106,24 +109,30 @@ export class Task<Input = any, Output = any> implements ITask<Input, Output> {
 
      /**
       * Executes the task within the provided context, applying retry and timeout policies.
+      * 
       * Example:
       * ```typescript
       * const result = await task.run(context);
       * ```
-      * @param context - The TaskContext instance providing input, output, and additional task-specific data.
-      * @returns A promise resolving to the output of the task.
+      * 
+      * @param context - The context containing task input, output, and other metadata.
+      * @returns A promise that resolves to the output of the task.
       */
      public async run(context: TaskContext<Input, Output>): Promise<Output> {
           this.logger.info(`Running task: ${this.name}`);
           this.status = ETaskStatus.Running;
           let attempt = 0;
 
+          /**
+           * Executes the task with a timeout policy.
+           * Rejects if the task exceeds the specified timeout duration.
+           */
           const executeWithTimeout = async (): Promise<Output> => {
                return new Promise<Output>((resolve, reject) => {
                     const timeout = this.timeoutPolicy.getTimeout();
                     let timer: NodeJS.Timeout | null = null;
 
-                    if (timeout) {
+                    if (timeout && timeout > 0) {
                          timer = setTimeout(() => {
                               this.status = ETaskStatus.TimedOut;
                               reject(new Error(`Task "${this.name}" timed out after ${timeout}ms`));
@@ -145,7 +154,8 @@ export class Task<Input = any, Output = any> implements ITask<Input, Output> {
           while (true) {
                try {
                     const result = await executeWithTimeout();
-                    context.setOutput(result);
+                    context.setTaskOutput(this.name, result);
+
                     this.status = ETaskStatus.Completed;
                     this.logger.info(`Finished task: ${this.name}`);
 
@@ -177,5 +187,18 @@ export class Task<Input = any, Output = any> implements ITask<Input, Output> {
                     }
                }
           }
+     }
+
+     /**
+      * Retrieves the current status of the task.
+      * Example:
+      * ```typescript
+      * const status = task.getStatus();
+      * console.log(`Current status: ${status}`);
+      * ```
+      * @returns The current execution status of the task.
+      */
+     public getStatus(): ETaskStatus {
+          return this.status;
      }
 }

@@ -1,19 +1,18 @@
-import { WorkflowBuilder } from '../core/workflow/WorkflowBuilder';
-import { ITask } from '../interfaces/core/task/ITask';
-import { ILogger } from '../interfaces/utils/ILogger';
-import { IErrorHandler } from '../interfaces/core/error/IErrorHandler';
-import { IPersistence } from '../interfaces/utils/IPersistence';
-import { TTaskOptions, TWorkflowOptions } from '../types';
-import { Task } from '../core/task/Task';
-import { Logger } from '../utils/Logger';
-import { ErrorHandler } from '../core/error/ErrorHandler';
-import { IScheduledTask } from '../interfaces/core/task';
-import { ConditionalTask, ParallelTask, ScheduledTask } from '../core/task';
+import { WorkflowBuilder } from "../core/workflow/WorkflowBuilder";
+import { Task } from "../core/task/Task";
+import { Logger } from "../utils/Logger";
+import { EWorkflowStatus } from "../enums";
+import { ErrorHandler } from "../core/error/ErrorHandler";
+import { ConditionalTask, ParallelTask, ScheduledTask } from "../core/task";
+import { IScheduledTask } from "../interfaces/core/task";
+import { ITask } from "../interfaces/core/task/ITask";
+import { ILogger } from "../interfaces/utils/ILogger";
+import { IErrorHandler } from "../interfaces/core/error/IErrorHandler";
+import { IPersistence } from "../interfaces/utils/IPersistence";
+import { TTaskOptions, TWorkflowOptions } from "../types";
+import { InMemoryPersistence } from "../utils/InMemoryPersistence";
+import { IWorkflow } from "../interfaces/core/workflow/IWorkflow";
 
-/**
- * A manager class for creating and managing workflows, tasks, and related components.
- * Provides methods for creating workflows, tasks, and integrating logging, error handling, and persistence.
- */
 export class FlowManager {
      /**
       * Logger instance for logging workflow and task details.
@@ -31,21 +30,21 @@ export class FlowManager {
      private persistence?: IPersistence;
 
      /**
-      * Constructs a FlowManager instance with optional logger, error handler, and persistence.
-      * Example:
-      * ```typescript
-      * const flowManager = new FlowManager({
-      *   logger: customLogger,
-      *   errorHandler: customErrorHandler,
-      *   persistence: customPersistence,
-      * });
-      * ```
-      * @param options - Optional configuration for logger, error handler, and persistence.
+      * A map to store and manage workflows by their names.
+      * The key is the workflow name (string), and the value is the corresponding `IWorkflow` instance.
+      * This allows efficient retrieval and management of multiple workflows.
       */
-     constructor(options?: { logger?: ILogger; errorHandler?: IErrorHandler; persistence?: IPersistence }) {
+     private workflows: Map<string, IWorkflow> = new Map();
+
+
+     constructor(options?: {
+          logger?: ILogger;
+          errorHandler?: IErrorHandler;
+          persistence?: IPersistence;
+     }) {
           this.logger = options?.logger || new Logger();
           this.errorHandler = options?.errorHandler || new ErrorHandler(this.logger);
-          this.persistence = options?.persistence;
+          this.persistence = options?.persistence || new InMemoryPersistence();
      }
 
      /**
@@ -70,6 +69,92 @@ export class FlowManager {
           }
 
           return builder;
+     }
+
+     /**
+      * Builds a workflow from the given WorkflowBuilder instance.
+      * Example:
+      * ```typescript
+      * const builder = flowManager.createWorkflow('MyWorkflow');
+      * const workflow = flowManager.buildWorkflow(builder);
+      * ```
+      * @param builder - The WorkflowBuilder instance used to construct the workflow.
+      * @returns An instance of `IWorkflow`.
+      */
+     public buildWorkflow(builder: WorkflowBuilder): IWorkflow {
+          const workflow = builder.build();
+          this.workflows.set(workflow.getName(), workflow);
+          return workflow;
+     }
+
+     /**
+      * Retrieves a workflow by its name.
+      * Example:
+      * ```typescript
+      * const workflow = flowManager.getWorkflow('MyWorkflow');
+      * if (workflow) {
+      *   console.log('Workflow found!');
+      * }
+      * ```
+      * @param name - The name of the workflow.
+      * @returns An instance of `IWorkflow`, or undefined if not found.
+      */
+     public getWorkflow(name: string): IWorkflow | undefined {
+          return this.workflows.get(name);
+     }
+
+     /**
+      * Pauses an active workflow.
+      * Example:
+      * ```typescript
+      * await flowManager.pauseWorkflow('MyWorkflow');
+      * ```
+      * @param name - The name of the workflow to pause.
+      * @returns A promise that resolves when the workflow is paused.
+      */
+     public async pauseWorkflow(name: string): Promise<void> {
+          const workflow = this.workflows.get(name);
+          if (!workflow) {
+               this.logger.warn(`Workflow "${name}" not found.`);
+               return;
+          }
+          await workflow.pause();
+     }
+
+     /**
+      * Resumes a paused workflow.
+      * Example:
+      * ```typescript
+      * await flowManager.resumeWorkflow('MyWorkflow');
+      * ```
+      * @param name - The name of the workflow to resume.
+      * @returns A promise that resolves when the workflow is resumed.
+      */
+     public async resumeWorkflow(name: string): Promise<any> {
+          const workflow = this.workflows.get(name);
+          if (!workflow) {
+               this.logger.warn(`Workflow "${name}" not found.`);
+               return;
+          }
+          return await workflow.resume();
+     }
+
+     /**
+      * Cancels a running or paused workflow.
+      * Example:
+      * ```typescript
+      * await flowManager.cancelWorkflow('MyWorkflow');
+      * ```
+      * @param name - The name of the workflow to cancel.
+      * @returns A promise that resolves when the workflow is cancelled.
+      */
+     public async cancelWorkflow(name: string): Promise<void> {
+          const workflow = this.workflows.get(name);
+          if (!workflow) {
+               this.logger.warn(`Workflow "${name}" not found.`);
+               return;
+          }
+          await workflow.cancel();
      }
 
      /**
@@ -101,25 +186,25 @@ export class FlowManager {
      }
 
      /**
-      * Creates a conditional task that executes its child tasks only if a condition is met.
-      * Example:
-      * ```typescript
-      * const conditionalTask = flowManager.createConditionalTask(
-      *   'CheckCondition',
-      *   (context) => context.get('isValid'),
-      *   [taskA, taskB]
-      * );
-      * ```
-      * @param name - The name of the conditional task.
-      * @param condition - A function that determines if the tasks should execute.
-      * @param tasks - The tasks to execute if the condition is met.
-      * @param logger - Optional logger instance for the conditional task.
-      * @returns An instance of `ITask`.
-      */
+           * Creates a conditional task that executes its child tasks only if a condition is met.
+           * Example:
+           * ```typescript
+           * const conditionalTask = flowManager.createConditionalTask(
+           *   'CheckCondition',
+           *   (context) => context.get('isValid'),
+           *   [taskA, taskB]
+           * );
+           * ```
+           * @param name - The name of the conditional task.
+           * @param condition - A function that determines if the tasks should execute.
+           * @param tasks - The tasks to execute if the condition is met.
+           * @param logger - Optional logger instance for the conditional task.
+           * @returns An instance of `ITask`.
+           */
      public createConditionalTask<Input = any, Output = any>(
           name: string,
           condition: (context: any) => boolean,
-          tasks: ITask[],
+          tasks: ITask<Input, Output>[],
           logger?: ILogger
      ): ITask<Input, Output> {
           return new ConditionalTask<Input, Output>(
@@ -130,25 +215,26 @@ export class FlowManager {
           );
      }
 
+
      /**
       * Creates a task that executes a group of tasks in parallel.
       * Example:
       * ```typescript
-      * const parallelTask = flowManager.createParallelTasks([taskA, taskB, taskC]);
+      * const parallelTask = flowManager.createParallelTasks(
+      *   'parallelTask',
+      *   [taskA, taskB, taskC]
+      * );
       * ```
       * @param tasks - An array of tasks to execute in parallel.
       * @param logger - Optional logger instance for the parallel task.
       * @returns An instance of `ITask`.
-      */
+     */
      public createParallelTasks<Input = any, Output = any>(
-          tasks: ITask[],
+          name: string,
+          tasks: ITask<Input, Output>[],
           logger?: ILogger
      ): ITask<Input, Output> {
-          return new ParallelTask<Input, Output>(
-               'ParallelTasks',
-               tasks,
-               logger || this.logger
-          );
+          return new ParallelTask<Input, Output>(name, tasks, logger || this.logger);
      }
 
      /**
@@ -182,5 +268,52 @@ export class FlowManager {
                options,
                logger || this.logger
           );
+     }
+
+     public getWorkflowStatus(name: string): EWorkflowStatus | undefined {
+          const workflow = this.workflows.get(name);
+          if (!workflow) {
+               this.logger.warn(`Workflow "${name}" not found.`);
+               return undefined;
+          }
+          return workflow.getStatus();
+     }
+
+     /**
+      * Retrieves the status of all tasks in a workflow.
+      * Example:
+      * ```typescript
+      * const tasksStatus = flowManager.getWorkflowTasksStatus('MyWorkflow');
+      * tasksStatus?.forEach(task => console.log(`${task.name}: ${task.status}`));
+      * ```
+      * @param name - The name of the workflow.
+      * @returns An array of task statuses, or undefined if the workflow is not found.
+      */
+     public getWorkflowTasksStatus(name: string): Array<{ name: string; status: string }> | undefined {
+          const workflow = this.workflows.get(name);
+          if (!workflow) {
+               this.logger.warn(`Workflow "${name}" not found.`);
+               return undefined;
+          }
+          return workflow.getTasksStatus();
+     }
+
+     /**
+      * Restores the state of a workflow from the persistence layer.
+      * Example:
+      * ```typescript
+      * await flowManager.restoreWorkflow('MyWorkflow');
+      * ```
+      * @param name - The name of the workflow to restore.
+      * @returns A promise that resolves when the workflow is restored.
+      */
+     public async restoreWorkflow(name: string): Promise<void> {
+          const state = await this.persistence?.getWorkflowState(name);
+          const workflow = this.workflows.get(name);
+          if (workflow && state) {
+               workflow.restoreState(state);
+          } else {
+               this.logger.warn(`No state or workflow found for "${name}".`);
+          }
      }
 }

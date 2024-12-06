@@ -55,34 +55,39 @@ The **TS-Flow** Framework is a modular, extensible framework specifically design
 ---
 
 ## ✨ **Features**
-### **Core Features**
-1. **Workflow Management**:
-   - Build workflows with sequential, parallel, and conditional logic.
-   - Track progress and execution status.
 
-2. **Task Handling**:
-   - Configurable retries, timeouts, and backoff strategies.
-   - Task context management for sharing input/output data.
+### **1. Workflow Composition**
+- Compose workflows dynamically with **sequential**, **parallel**, and **conditional** execution patterns.
+- Support for **middleware** at the workflow and task levels for pre- and post-execution logic.
+- Lifecycle hooks for seamless integration of custom behaviors.
 
-3. **Error Management**:
-   - Unified error handling with context-aware details.
-   - Retry policies with support for linear, exponential, or fixed delays.
+### **2. Middleware Integration**
+- Attach middleware functions to workflows or tasks to extend capabilities.
+- Middleware supports **chaining** and **asynchronous execution**.
 
-4. **Logging**:
-   - Integrated logging with customizable levels (DEBUG, INFO, WARN, ERROR).
-   - Plug-and-play external logging systems.
+### **3. Error Handling**
+- Centralized error handling with support for retries and configurable backoff strategies.
+- Error hooks for workflow-level and task-level custom error management.
 
-5. **Persistence**:
-   - Save workflow/task states and restore them for recovery scenarios.
-   - Easily integrate with custom persistence layers.
+### **4. Task Management**
+- Tasks support configurable **timeouts**, **retries**, and **backoff strategies**.
+- Task context enables the sharing of input and output data across workflows.
 
-6. **Scheduling**:
-   - Run tasks periodically using cron expressions.
-   - Manage schedules programmatically.
+### **5. Scheduling**
+- Schedule tasks with **cron expressions** for periodic execution.
+- Dynamic control over scheduled tasks (start, stop, reschedule).
 
-7. **Hooks and Events**:
-   - Framework lifecycle hooks for workflows (`onWorkflowStart`, `onWorkflowError`, etc.).
-   - Event-driven model for inter-component communication.
+### **6. Persistence**
+- Save and restore workflow and task states using in-memory or external persistence layers.
+- Ensure reliability and fault tolerance across workflows.
+
+### **7. Logging**
+- Integrated logging with customizable levels (DEBUG, INFO, WARN, ERROR).
+- Pluggable logging solutions for external integration.
+
+### **8. Event-Driven Architecture**
+- Built-in ```EventBus``` for robust inter-component communication.
+- Emit and listen to custom events for real-time tracking and debugging.
 
 ---
 
@@ -112,7 +117,6 @@ import { FlowManager } from '@dyniqo/ts-flow';
 const flowManager = new FlowManager();
 
 const workflow = flowManager.createWorkflow('MyFirstWorkflow');
-console.log('Workflow created:', workflow);
 ```
 
 ---
@@ -122,16 +126,16 @@ console.log('Workflow created:', workflow);
 Tasks are the building blocks of a workflow. Here’s how you create a simple task.
 
 ```typescript
-const simpleTask = flowManager.createTask(
-  'SimpleTask',
+const taskA = flowManager.createTask(
+  'taskA',
   async (context) => {
     console.log('Executing task with input:', context.getInput());
-    context.setOutput('Task completed successfully');
+    return "Task completed successfully";
   }
 );
 
 const workflowWithTask = flowManager.createWorkflow('WorkflowWithTask')
-  .addTask(simpleTask)
+  .addTask(taskA)
   .build();
 
 workflowWithTask.execute({ inputData: 'Sample Input' }).then((output) => {
@@ -141,7 +145,27 @@ workflowWithTask.execute({ inputData: 'Sample Input' }).then((output) => {
 
 ---
 
-### **Step 3: Adding Complex Tasks**
+### **Step 3: Middleware Support**
+
+Middleware allows you to extend workflows with custom logic.
+
+```typescript
+const middleware = async (context, next) => {
+  console.log('Before Task Execution');
+  await next();
+  console.log('After Task Execution');
+};
+
+const workflowWithMiddleware = flowManager.createWorkflow('WorkflowWithMiddleware')
+  .setOptions({ middleware: [middleware] })
+  .addTask(taskA)
+  .build();
+
+workflowWithMiddleware.execute({ input: 'Middleware Example' });
+```
+---
+
+### **Step 4: Adding Complex Tasks**
 
 Tasks can be conditional, parallel, or scheduled.
 
@@ -153,7 +177,7 @@ Conditional tasks execute their child tasks only if a given condition is true.
 const conditionalTask = flowManager.createConditionalTask(
   'CheckCondition',
   (context) => context.getInput().shouldRun === true,
-  [simpleTask]
+  [taskA]
 );
 
 const workflowWithConditionalTask = flowManager.createWorkflow('WorkflowWithCondition')
@@ -168,7 +192,10 @@ workflowWithConditionalTask.execute({ shouldRun: true });
 Parallel tasks allow multiple tasks to execute simultaneously.
 
 ```typescript
-const parallelTask = flowManager.createParallelTasks([taskA, taskB, taskC]);
+const taskB = flowManager.createTask('TaskB', async () => console.log('TaskB executed'));
+const taskC = flowManager.createTask('TaskC', async () => console.log('TaskC executed'));
+
+const parallelTask = flowManager.createParallelTasks('ParallelTasks', [taskB, taskC]);
 
 const workflowWithParallelTasks = flowManager.createWorkflow('WorkflowWithParallel')
   .addTask(parallelTask)
@@ -184,37 +211,38 @@ Scheduled tasks execute at specified intervals using cron expressions.
 ```typescript
 const scheduledTask = flowManager.createScheduledTask(
   'DailyTask',
-  async () => {
-    console.log('Running daily task');
-  },
-  '0 0 * * *' // Every day at midnight
+  async () => console.log('Executing daily task'),
+  '*/5 * * * * *' // Every 5 seconds
+  // '0 0 * * *' // Every day at midnight
 );
 
-scheduledTask.start(); // Start the scheduled task
+scheduledTask.start();
 ```
 
 ---
 
-### **Step 4: Using Retry Policies**
+### **Step 4: Persistence**
 
-Retry policies ensure tasks are reattempted in case of failure.
+Save and restore workflows and tasks for fault-tolerant execution.
 
 ```typescript
-const retryTask = flowManager.createTask(
-  'RetryExample',
-  async () => {
-    console.log('Attempting task...');
-    if (Math.random() < 0.7) throw new Error('Task failed!');
-    return 'Task succeeded!';
-  },
-  { retryCount: 3 } // Retry up to 3 times
+const persistentManager = new FlowManager({
+  persistence: new InMemoryPersistence(),
+});
+
+const persistentTask = persistentManager.createTask(
+  'PersistentTask',
+  async (context) => {
+    console.log('Executing persistent task');
+    context.set('PersistenceKey', 'Persistence value');
+  }
 );
 
-const workflowWithRetry = flowManager.createWorkflow('RetryWorkflow')
-  .addTask(retryTask)
+const workflowWithPersistence = persistentManager.createWorkflow('PersistentWorkflow')
+  .addTask(persistentTask)
   .build();
 
-workflowWithRetry.execute({});
+workflowWithPersistence.execute({});
 ```
 
 ---
@@ -250,8 +278,10 @@ Hooks allow you to inject custom logic at various points in the workflow lifecyc
 #### **Example: Logging Task Start and Finish**
 
 ```typescript
+const taskA = flowManager.createTask('TaskB', async () => console.log('TaskB executed'));
+
 const workflowWithHooks = flowManager.createWorkflow('HookedWorkflow')
-  .addTask(simpleTask)
+  .addTask(taskA)
   .addHook('onTaskStart', async (taskContext) => {
     console.log(`Task ${taskContext.name} is starting.`);
   })
@@ -337,6 +367,13 @@ const persistentFlowManager = new FlowManager({
     getWorkflowState: async (workflowId) => {
       console.log(`Retrieving state for ${workflowId}`);
       return null; // Simulate no existing state
+    },
+    saveTaskState: async (taskId, state) => {
+      console.log(`Saving task state for ${taskId}:`, state);
+    },
+    getTaskState: async (taskId) => {
+      console.log(`Retrieving state for ${taskId}`);
+      return null; // Simulate no existing state
     }
   }
 });
@@ -360,40 +397,130 @@ workflowWithPersistence.execute({});
 
 ### **Step 10: Comprehensive Workflow Example**
 
-Combining tasks, hooks, retry, timeout, and parallel execution.
+Here is a **comprehensive example** that combines sequential, parallel, and conditional tasks, middleware, hooks, and dynamic state management, demonstrating the full capabilities of the framework.
+
+![Sample Workflow](media/my-workflow.gif)
 
 ```typescript
-const finalWorkflow = flowManager.createWorkflow('ComprehensiveWorkflow')
-  .addTask(
-    flowManager.createTask('TaskA', async () => {
-      console.log('TaskA executed');
-    })
-  )
-  .addParallelTasks([
-    flowManager.createTask('TaskB', async () => {
-      console.log('TaskB executed');
-    }),
-    flowManager.createTask('TaskC', async () => {
-      console.log('TaskC executed');
-    })
-  ])
-  .addConditionalTasks(
-    (context) => context.getInput().runConditionals === true,
-    [
-      flowManager.createTask('ConditionalTask1', async () => {
-        console.log('ConditionalTask1 executed');
-      })
-    ]
-  )
-  .addHook('onWorkflowStart', async () => {
-    console.log('Workflow starting...');
-  })
-  .addHook('onWorkflowFinish', async () => {
-    console.log('Workflow completed.');
-  })
-  .build();
+import { FlowManager } from '@dyniqo/ts-flow';
 
-finalWorkflow.execute({ runConditionals: true });
+// Initialize the FlowManager
+const flowManager = new FlowManager({});
+
+// Define TaskA: A task that stores a value in the context and returns a result
+const taskA = flowManager.createTask(
+  "TaskA",
+  async (context) => {
+    context.set("AExecuted", true);
+    return "ResultFromA";
+  },
+  { retryCount: 2, timeout: 5000 }
+);
+
+// Define TaskB: A task that uses the output of TaskA and adds a delay
+const taskB = flowManager.createTask("TaskB", async (context) => {
+  await new Promise((res) => setTimeout(res, 3000));
+  const aResult = context.getTaskOutput("TaskA");
+  context.set("BInput", aResult);
+  return "ResultFromB";
+});
+
+// Define TaskC: A task that appends its result to the output of TaskB
+const taskC = flowManager.createTask("TaskC", async (context) => {
+  const bResult = context.getTaskOutput("TaskB");
+  return bResult + " + ResultFromC";
+});
+
+// Define TaskD: A simple task that returns a static result
+const taskD = flowManager.createTask("TaskD", async (context) => {
+  return "ExtraResultFromD";
+});
+
+// Define a conditional task: Executes TaskD if TaskC's result meets a condition
+const conditionalTask = flowManager.createConditionalTask(
+  "ConditionalTask",
+  (ctx) => {
+    const cResult = ctx.getTaskOutput("TaskC");
+    return cResult.includes("C");
+  },
+  [taskD]
+);
+
+// Define parallel tasks: TaskE and TaskF will execute simultaneously
+const taskE = flowManager.createTask("TaskE", async (context) => "ResultE");
+const taskF = flowManager.createTask("TaskF", async (context) => "ResultF");
+const parallelTasks = flowManager.createParallelTasks("ParallelGroup", [
+  taskE,
+  taskF,
+]);
+
+// Build the workflow with tasks, middleware, and hooks
+const builder = flowManager
+  .createWorkflow("MyWorkflow", {
+    retryCount: 1,
+    timeout: 0,
+    middleware: [
+      async (ctx, next) => {
+        ctx.set("middlewareLog", `Running at task index`);
+        await next();
+      },
+    ],
+  })
+  .addHook("onWorkflowStart", async (context) => {
+    console.log("Workflow started with input:", context.getInput());
+  })
+  .addHook("onTaskStart", async (task) => {
+    console.log(`Task started: ${task.name}`);
+  })
+  .addHook("onTaskFinish", async (task) => {
+    console.log(`Task finished: ${task.name}`);
+  })
+  .addHook("onWorkflowFinish", async (context) => {
+    console.log("Workflow finished with output:", context);
+  })
+  .addTask(taskA)
+  .addTask(taskB)
+  .addTask(parallelTasks)
+  .addTask(taskC)
+  .addTask(conditionalTask);
+
+// Execute the workflow
+const workflow = flowManager.buildWorkflow(builder);
+
+const inputData = { initial: "data" };
+console.log("--- Starting Workflow ---");
+const executionPromise = workflow.execute(inputData);
+
+// Pause and resume logic
+setTimeout(async () => {
+  console.log("--- Pausing Workflow ---");
+  await flowManager.pauseWorkflow("MyWorkflow");
+
+  console.log(
+    "Workflow Status:",
+    flowManager.getWorkflowStatus("MyWorkflow")
+  );
+  console.log(
+    "Task Statuses:",
+    flowManager.getWorkflowTasksStatus("MyWorkflow")
+  );
+
+  setTimeout(async () => {
+    console.log("--- Resuming Workflow ---");
+    await flowManager.resumeWorkflow("MyWorkflow");
+  }, 2000);
+}, 2000);
+
+// Log final output and status
+const finalOutput = await executionPromise;
+console.log("Final Output:", finalOutput);
+
+console.log("--- Workflow Completed ---");
+console.log("Workflow Status:", flowManager.getWorkflowStatus("MyWorkflow"));
+console.log(
+  "Task Statuses:",
+  flowManager.getWorkflowTasksStatus("MyWorkflow")
+);
 ```
 
 ---

@@ -1,9 +1,9 @@
 import { THookType } from '../../../types';
 
 /**
- * Interface for managing hooks, which are functions that can be registered and executed 
- * at specific points in a workflow or task lifecycle. Hooks can be used to customize 
- * behavior or handle additional logic dynamically.
+ * Interface for managing hooks, which are functions that can be registered, executed, 
+ * removed, or retrieved at specific points in a workflow or task lifecycle.
+ * Hooks allow dynamic customization of behavior or additional logic injection.
  */
 export interface IHookManager {
 
@@ -40,4 +40,27 @@ export interface IHookManager {
           context: any,
           error?: Error
      ): Promise<void>;
+
+     /**
+      * Removes all hooks associated with a specific hook type.
+      * This can be used to clear hooks dynamically during workflow execution.
+      * Example:
+      * ```typescript
+      * hookManager.removeHooks('onWorkflowError');
+      * ```
+      * @param hookType - The type of hook to remove (e.g., 'onWorkflowError', 'onTaskStart').
+      */
+     removeHooks(hookType: THookType): void;
+
+     /**
+      * Retrieves all registered hooks for a specific hook type.
+      * Example:
+      * ```typescript
+      * const hooks = hookManager.getHooks('onTaskFinish');
+      * console.log(hooks);
+      * ```
+      * @param hookType - The type of hook to retrieve (e.g., 'onTaskFinish', 'onWorkflowError').
+      * @returns An array of hook functions associated with the specified type, or `undefined` if no hooks are registered.
+      */
+     getHooks(hookType: THookType): Array<(context: any, error?: Error) => Promise<void>> | undefined;
 }

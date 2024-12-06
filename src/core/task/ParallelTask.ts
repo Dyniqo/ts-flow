@@ -1,5 +1,7 @@
 import { Task } from './Task';
 import { TaskContext } from './TaskContext';
+import { TWorkflowOptions } from '../../types';
+import { runMiddlewareWithTask } from '../../utils/middlewareRunner';
 import { ILogger } from '../../interfaces/utils/ILogger';
 import { ITask } from '../../interfaces/core/task/ITask';
 
@@ -10,38 +12,58 @@ import { ITask } from '../../interfaces/core/task/ITask';
  * @template Output - The type of the output data for the task.
  */
 export class ParallelTask<Input = any, Output = any> extends Task<Input, Output> {
-     private tasks: ITask[];
+     /**
+      * An array of tasks to execute in parallel.
+      */
+     private tasks: ITask<Input, Output>[]
 
      /**
-      * Constructs a ParallelTask with a name and a list of tasks to execute concurrently.
+      * Workflow-specific options used to configure middleware or other behaviors during task execution.
+      */
+     protected workflowOptions: TWorkflowOptions;
+
+     /**
+      * Constructs a `ParallelTask` with a name and a list of child tasks to be executed in parallel.
       * Example:
       * ```typescript
-      * const parallelTask = new ParallelTask('MyParallelTask', [task1, task2]);
+      * const parallelTask = new ParallelTask(
+      *   'MyParallelTask',
+      *   [taskA, taskB, taskC],
+      *   logger,
+      *   { middleware: [middlewareFunction] }
+      * );
       * ```
       * @param name - The name of the parallel task.
       * @param tasks - An array of tasks to execute in parallel.
       * @param logger - Optional logger instance for logging.
+      * @param workflowOptions - Optional workflow-specific configuration options.
       */
-     constructor(name: string, tasks: ITask[], logger?: ILogger) {
-          super(name, async (context: TaskContext<Input, Output>) => {
-               return undefined as Output
-          }, undefined, logger);
+     constructor(
+          name: string,
+          tasks: ITask<Input, Output>[],
+          logger?: ILogger,
+          workflowOptions?: TWorkflowOptions
+     ) {
+          super(
+               name,
+               async (context: TaskContext<Input, Output>) => {
+                    const results: Output[] = await Promise.all(
+                         tasks.map(task =>
+                              (async () => {
+                                   let taskResult: Output;
+                                   await runMiddlewareWithTask(this.workflowOptions, context, async () => {
+                                        taskResult = await task.run(context);
+                                   });
+                                   return taskResult!;
+                              })()
+                         )
+                    );
+                    return results as unknown as Output;
+               },
+               undefined,
+               logger
+          );
           this.tasks = tasks;
-     }
-
-     /**
-      * Executes all child tasks concurrently and waits for their completion.
-      * Example:
-      * ```typescript
-      * await parallelTask.run(context);
-      * ```
-      * @param context - The shared context for all child tasks.
-      */
-     public async run(context: TaskContext<Input, Output>): Promise<Output> {
-          this.logger.info(`Running parallel tasks: ${this.name}`);
-          await Promise.all(this.tasks.map((task) => task.run(context)));
-          this.logger.info(`Finished parallel tasks: ${this.name}`);
-
-          return context.getOutput() as Output
+          this.workflowOptions = workflowOptions || {};
      }
 }

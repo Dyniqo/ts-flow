@@ -20,45 +20,45 @@ export default [
       {
         file: "dist/ts-flow.cjs.js",
         format: "cjs",
-        sourcemap: true,
+        sourcemap: false,
         banner
       },
       {
         file: "dist/ts-flow.esm.js",
         format: "esm",
-        sourcemap: true,
+        sourcemap: false,
         banner
       },
       {
         file: "dist/ts-flow.cjs.min.js",
         format: "cjs",
-        sourcemap: true,
+        sourcemap: false,
         plugins: [terser()],
         banner,
       },
       {
         file: "dist/ts-flow.esm.min.js",
         format: "esm",
-        sourcemap: true,
+        sourcemap: false,
         plugins: [terser()],
         banner,
       },
       {
         file: "dist/ts-flow.amd.js",
         format: "amd",
-        sourcemap: true,
+        sourcemap: false,
         banner,
       },
       {
         file: "dist/ts-flow-iife.js",
         format: "iife",
-        sourcemap: true,
+        sourcemap: false,
         banner,
       },
       {
         file: "dist/ts-flow.iife.min.js",
         format: "iife",
-        sourcemap: true,
+        sourcemap: false,
         plugins: [terser()],
         banner,
       },
@@ -76,7 +76,7 @@ export default [
 
   {
     input: "./dist/index.d.ts",
-    output: [{ file: "dist/ts-flow.d.ts", format: "es" }],
+    output: [{ file: "dist/ts-flow.d.ts", format: "es", banner }],
     plugins: [
       dts(``),
       del({

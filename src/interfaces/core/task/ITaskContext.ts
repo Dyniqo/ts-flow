@@ -1,6 +1,6 @@
 /**
  * Interface defining the context for a task, providing methods for managing input, output,
- * and additional data that may be required during task execution.
+ * and additional data, as well as specific outputs for individual tasks within a workflow.
  * @template Input - The type of the input data for the task.
  * @template Output - The type of the output data for the task.
  */
@@ -59,4 +59,38 @@ export interface ITaskContext<Input = any, Output = any> {
       * @template T - The expected type of the value being retrieved.
       */
      get<T = any>(key: string): T | undefined;
+
+     /**
+      * Associates the output of a specific task with its name in the context.
+      * Useful for storing the results of individual tasks within a workflow.
+      * Example:
+      * ```typescript
+      * taskContext.setTaskOutput('taskA', { result: 'success' });
+      * ```
+      * @param taskName - The name of the task whose output is being stored.
+      * @param output - The output data to associate with the task.
+      */
+     setTaskOutput(taskName: string, output: any): void;
+
+     /**
+      * Retrieves the output of a specific task by its name.
+      * Example:
+      * ```typescript
+      * const taskAOutput = taskContext.getTaskOutput<{ result: string }>('taskA');
+      * ```
+      * @param taskName - The name of the task whose output is being retrieved.
+      * @returns The output associated with the specified task name, or `undefined` if not set.
+      * @template T - The expected type of the task's output.
+      */
+     getTaskOutput<T = any>(taskName: string): T | undefined;
+
+     /**
+      * Retrieves all task outputs stored in the context.
+      * Example:
+      * ```typescript
+      * const allOutputs = taskContext.getAllTaskOutputs();
+      * ```
+      * @returns An object containing all task outputs, where the keys are task names and the values are their outputs.
+      */
+     getAllTaskOutputs(): { [taskName: string]: any };
 }
