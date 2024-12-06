@@ -12,6 +12,7 @@ src/
 tests/
 coverage/
 dist/
+media/
 tsconfig.json
 tsconfig.*.json
 .eslintignore
