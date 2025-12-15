@@ -7,7 +7,7 @@ import { terser } from "rollup-plugin-terser";
 import del from "rollup-plugin-delete";
 const banner = `/*!
  * ts-flow
- * by LorestaniMe <dyniqo@gmail.com>
+ * by LorestaniMe <contact@dyniqo.dev>
  * https://github.com/Dyniqo/ts-flow
  * License MIT
  */
